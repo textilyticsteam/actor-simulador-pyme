@@ -2,6 +2,15 @@ import numpy as np
 import pandas as pd
 
 
+def _a_float(valor) -> float:
+    if valor is None or (isinstance(valor, float) and np.isnan(valor)):
+        return np.nan
+    try:
+        return float(valor)
+    except (TypeError, ValueError):
+        return np.nan
+
+
 def ejecutar_inferencia_y_simulacion(
     modelo,
     df_raw: pd.DataFrame,
@@ -14,7 +23,8 @@ def ejecutar_inferencia_y_simulacion(
     predicciones_ml = modelo.predict(df_features)
 
     df_res = df_raw.copy()
-    df_res["Alternativa"] = df_features["Alternativa"]
+    if "Alternativa" in df_features.columns:
+        df_res["Alternativa"] = df_features["Alternativa"]
     df_res["Costo_Estimado_ML_ARS"] = np.round(predicciones_ml).astype(int)
 
     costos_nac = []
@@ -22,9 +32,9 @@ def ejecutar_inferencia_y_simulacion(
     puntos_eq = []
     recomendaciones = []
 
-    for _, row in df_features.iterrows():
-        p_metro = row["precio_por_metro"]
-        p_usd = row["precio_venta_usd"]
+    for _, row in df_res.iterrows():
+        p_metro = _a_float(row.get("precio_por_metro"))
+        p_usd = _a_float(row.get("precio_venta_usd"))
 
         c_nac = (
             round((p_metro * metros_por_camisa) + costo_confeccion_ars)
@@ -33,14 +43,12 @@ def ejecutar_inferencia_y_simulacion(
         )
         c_imp = round(p_usd * tipo_cambio_usd) if pd.notna(p_usd) else None
 
-        # Punto de equilibrio ($/m) frente al precio importado
         p_eq = (
             round((c_imp - costo_confeccion_ars) / metros_por_camisa, 2)
             if c_imp is not None
             else None
         )
 
-        # Decisión económica según los datos disponibles en la fila
         if c_nac is not None and c_imp is not None:
             if c_imp < c_nac:
                 rec = "Importación (Shein)"
