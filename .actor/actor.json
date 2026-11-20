@@ -1,8 +1,13 @@
 {
     "actorSpecification": 1,
     "name": "simulador-costos-camisa-pyme",
-    "title": "Simulador de Costos y Predicción PyME (Batch)",
-    "description": "Evalúa lotes de telas nacionales vs. importación (Shein) usando modelo Ridge preentrenado y calcula puntos de equilibrio.",
-    "version": "1.0.0",
-    "input": "./input_schema.json"
+    "title": "Simulador de Costos PyME: Producción Nacional vs. Importación",
+    "description": "Servicio de Analytics e Inferencia ML para comparar costos de confección local de camisas de algodón frente a importación.",
+    "version": "1.0",
+    "buildTag": "latest",
+    "defaultMemoryMbytes": 512,
+    "minMemoryMbytes": 256,
+    "maxMemoryMbytes": 1024,
+    "input": "./input_schema.json",
+    "dockerfile": "../Dockerfile"
 }
