@@ -1,7 +1,7 @@
 import json
 import numpy as np
 import pandas as pd
-from src.config import COLUMNAS_NUMERICAS, FEATURES
+from src.config import COLUMNAS_CATEGORICAS, COLUMNAS_NUMERICAS, FEATURES
 
 
 def _normalizar_alternativa(valor: object) -> str:
@@ -13,8 +13,15 @@ def _normalizar_alternativa(valor: object) -> str:
     return "Producción Nacional"
 
 
+def _limpiar_texto_opcional(valor: object):
+    if valor is None or (isinstance(valor, float) and np.isnan(valor)):
+        return np.nan
+    texto = str(valor).strip()
+    return texto if texto else np.nan
+
+
 def preparar_lote(registros) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Valida y limpia el lote de entrada. Devuelve (df_original, df_features)."""
+    """Valida, limpia y estructura el lote de entrada. Devuelve (df_original, df_features)."""
     if isinstance(registros, str):
         registros = json.loads(registros)
 
@@ -30,10 +37,9 @@ def preparar_lote(registros) -> tuple[pd.DataFrame, pd.DataFrame]:
     df_features = df_raw[FEATURES].copy()
     df_features["Alternativa"] = df_features["Alternativa"].apply(_normalizar_alternativa)
 
-    # Normaliza 'segmento' manteniendo NaN si viene vacío para que lo impute el Pipeline
-    df_features["segmento"] = df_features["segmento"].apply(
-        lambda v: np.nan if v is None or (isinstance(v, float) and np.isnan(v)) or str(v).strip() == "" else str(v).strip()
-    )
+    for col in COLUMNAS_CATEGORICAS:
+        if col != "Alternativa":
+            df_features[col] = df_features[col].apply(_limpiar_texto_opcional)
 
     for col in COLUMNAS_NUMERICAS:
         df_features[col] = pd.to_numeric(df_features[col], errors="coerce")
