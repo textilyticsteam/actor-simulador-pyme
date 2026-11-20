@@ -5,25 +5,21 @@ MODEL_PATH = Path("modelos/modelo_costos_camisa.joblib")
 FEATURES = [
     "Alternativa",
     "segmento",
+    "vendedor",
     "Estrellas",
     "Cantidad_Resenas",
-    "precio_por_metro",
-    "metro",
-    "precio_venta_usd",
     "descuento_pct",
 ]
 
 COLUMNAS_CATEGORICAS = [
     "Alternativa",
     "segmento",
+    "vendedor",
 ]
 
 COLUMNAS_NUMERICAS = [
     "Estrellas",
     "Cantidad_Resenas",
-    "precio_por_metro",
-    "metro",
-    "precio_venta_usd",
     "descuento_pct",
 ]
 
