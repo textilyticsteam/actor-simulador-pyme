@@ -3,6 +3,24 @@
     "type": "object",
     "schemaVersion": 1,
     "properties": {
+        "operacion": {
+            "title": "Operación a ejecutar",
+            "type": "string",
+            "description": "Permite ejecutar el flujo completo (Inference + Analytics) o cada servicio por separado.",
+            "editor": "select",
+            "enum": [
+                "all",
+                "inference",
+                "analytics"
+            ],
+            "enumTitles": [
+                "Completo (Inference + Analytics)",
+                "Solo Inference (Predicción y decisión por producto)",
+                "Solo Analytics (Métricas agregadas del lote)"
+            ],
+            "default": "all",
+            "prefill": "all"
+        },
         "registros": {
             "title": "Registros a evaluar (lote)",
             "type": "array",
@@ -10,38 +28,46 @@
             "editor": "json",
             "default": [
                 {
-                    "producto": "Tela Algodón Peinado Local",
+                    "producto": "Tela Poplin Algodón Local",
                     "Alternativa": "Producción Nacional",
-                    "Estrellas": 4.8,
-                    "Cantidad_Resenas": 120,
+                    "segmento": "poplin",
+                    "vendedor": "sin especificar",
+                    "Estrellas": 4.7,
+                    "Cantidad_Resenas": 100,
                     "precio_por_metro": 8000,
                     "metro": 1.5
                 },
                 {
                     "producto": "Camisa Algodón Importada",
                     "Alternativa": "Importación (Shein)",
+                    "segmento": "Men Shirts",
+                    "vendedor": "Manfinity",
                     "Estrellas": 4.7,
-                    "Cantidad_Resenas": 350,
+                    "Cantidad_Resenas": 100,
                     "precio_venta_usd": 12,
-                    "descuento_pct": 10
+                    "descuento_pct": 25
                 }
             ],
             "prefill": [
                 {
-                    "producto": "Tela Algodón Peinado Local",
+                    "producto": "Tela Poplin Algodón Local",
                     "Alternativa": "Producción Nacional",
-                    "Estrellas": 4.8,
-                    "Cantidad_Resenas": 120,
+                    "segmento": "poplin",
+                    "vendedor": "sin especificar",
+                    "Estrellas": 4.7,
+                    "Cantidad_Resenas": 100,
                     "precio_por_metro": 8000,
                     "metro": 1.5
                 },
                 {
                     "producto": "Camisa Algodón Importada",
                     "Alternativa": "Importación (Shein)",
+                    "segmento": "Men Shirts",
+                    "vendedor": "Manfinity",
                     "Estrellas": 4.7,
-                    "Cantidad_Resenas": 350,
+                    "Cantidad_Resenas": 100,
                     "precio_venta_usd": 12,
-                    "descuento_pct": 10
+                    "descuento_pct": 25
                 }
             ]
         },
@@ -70,5 +96,7 @@
             "prefill": 1500
         }
     },
-    "required": ["registros"]
+    "required": [
+        "registros"
+    ]
 }
