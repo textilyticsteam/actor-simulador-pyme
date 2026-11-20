@@ -23,7 +23,6 @@ def preparar_lote(registros) -> tuple[pd.DataFrame, pd.DataFrame]:
 
     df_raw = pd.DataFrame(registros).copy()
 
-    # Asegura que existan todas las columnas requeridas por el modelo
     for col in FEATURES:
         if col not in df_raw.columns:
             df_raw[col] = np.nan
@@ -31,7 +30,25 @@ def preparar_lote(registros) -> tuple[pd.DataFrame, pd.DataFrame]:
     df_features = df_raw[FEATURES].copy()
     df_features["Alternativa"] = df_features["Alternativa"].apply(_normalizar_alternativa)
 
+    # Normaliza 'segmento' manteniendo NaN si viene vacío para que lo impute el Pipeline
+    df_features["segmento"] = df_features["segmento"].apply(
+        lambda v: np.nan if v is None or (isinstance(v, float) and np.isnan(v)) or str(v).strip() == "" else str(v).strip()
+    )
+
     for col in COLUMNAS_NUMERICAS:
         df_features[col] = pd.to_numeric(df_features[col], errors="coerce")
 
     return df_raw, df_features
+
+
+def alinear_columnas_modelo(df_features: pd.DataFrame, modelo) -> pd.DataFrame:
+    """Garantiza que df_features tenga exactamente las columnas esperadas por el Pipeline."""
+    columnas_esperadas = getattr(modelo, "feature_names_in_", None)
+    if columnas_esperadas is None:
+        return df_features
+
+    df_alineado = df_features.copy()
+    for col in columnas_esperadas:
+        if col not in df_alineado.columns:
+            df_alineado[col] = np.nan
+    return df_alineado[list(columnas_esperadas)]
