@@ -6,7 +6,7 @@
         "registros": {
             "title": "Registros a evaluar (lote)",
             "type": "array",
-            "description": "Lista de productos o escenarios enviados desde Make.",
+            "description": "Lista de productos o escenarios enviados en bloque desde Make.",
             "editor": "json",
             "default": [
                 {
@@ -48,18 +48,24 @@
         "metros_por_camisa": {
             "title": "Metros de tela por camisa",
             "type": "number",
+            "description": "Cantidad de metros de tela necesarios para confeccionar una camisa.",
+            "editor": "number",
             "default": 1.5,
             "prefill": 1.5
         },
         "costo_confeccion_ars": {
             "title": "Costo fijo de confección ($ ARS)",
             "type": "integer",
+            "description": "Costo estimado de mano de obra y confección local por prenda en pesos argentinos.",
+            "editor": "number",
             "default": 8000,
             "prefill": 8000
         },
         "tipo_cambio_usd": {
             "title": "Tipo de cambio de referencia ($ ARS/USD)",
             "type": "number",
+            "description": "Cotización del dólar utilizada para convertir los precios importados a pesos argentinos.",
+            "editor": "number",
             "default": 1500,
             "prefill": 1500
         }
