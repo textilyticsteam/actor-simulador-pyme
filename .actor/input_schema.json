@@ -1,0 +1,47 @@
+{
+    "title": "Entrada Batch Simulador PyME",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "registros": {
+            "title": "Registros a evaluar (lote)",
+            "type": "array",
+            "description": "Lista de productos o escenarios enviados desde Make.",
+            "editor": "json",
+            "default": [
+                {
+                    "producto": "Tela Algodón Peinado Local",
+                    "Alternativa": "Producción Nacional",
+                    "Estrellas": 4.8,
+                    "Cantidad_Resenas": 120,
+                    "precio_por_metro": 8000,
+                    "metro": 1.5
+                },
+                {
+                    "producto": "Camisa Algodón Importada",
+                    "Alternativa": "Importación (Shein)",
+                    "Estrellas": 4.7,
+                    "Cantidad_Resenas": 350,
+                    "precio_venta_usd": 12,
+                    "descuento_pct": 10
+                }
+            ]
+        },
+        "metros_por_camisa": {
+            "title": "Metros de tela por camisa",
+            "type": "number",
+            "default": 1.5
+        },
+        "costo_confeccion_ars": {
+            "title": "Costo fijo de confección ($ ARS)",
+            "type": "integer",
+            "default": 8000
+        },
+        "tipo_cambio_usd": {
+            "title": "Tipo de cambio de referencia ($ ARS/USD)",
+            "type": "number",
+            "default": 1500
+        }
+    },
+    "required": ["registros"]
+}
