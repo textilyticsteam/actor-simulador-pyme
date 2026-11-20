@@ -1,0 +1,8 @@
+{
+    "actorSpecification": 1,
+    "name": "simulador-costos-camisa-pyme",
+    "title": "Simulador de Costos y Predicción PyME (Batch)",
+    "description": "Evalúa lotes de telas nacionales vs. importación (Shein) usando modelo Ridge preentrenado y calcula puntos de equilibrio.",
+    "version": "1.0.0",
+    "input": "./input_schema.json"
+}
