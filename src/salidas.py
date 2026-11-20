@@ -1,10 +1,10 @@
+import json
 import pandas as pd
 
 
 def formatear_resultados(df_resultados: pd.DataFrame) -> tuple[list[dict], dict]:
-    """Convierte el DataFrame final en registros JSON limpios y genera un resumen del lote."""
-    df_limpio = df_resultados.where(pd.notna(df_resultados), None)
-    items = df_limpio.to_dict(orient="records")
+    """Convierte el DataFrame final en registros JSON válidos y genera un resumen del lote."""
+    items = json.loads(df_resultados.to_json(orient="records"))
 
     resumen = {
         "total_registros_procesados": len(items),
