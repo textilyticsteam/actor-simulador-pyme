@@ -1,45 +1,31 @@
-# Simulador Económico PyME y Predicción de Costos (Actor Apify - Batch)
+# Simulador de Costos PyME: Producción Nacional vs. Importación
 
-Actor de Apify diseñado para evaluar en **lotes (Batch)** la conveniencia económica entre producir camisas de algodón localmente o importarlas (Shein), combinando un modelo de Machine Learning preentrenado (`Ridge Regression`) con reglas de punto de equilibrio para toma de decisiones PyME.
+Servicio cloud en **Apify Store** que consolida **Analytics** e **Inferencia de Machine Learning** para ayudar a PyMEs textiles argentinas a decidir si les conviene confeccionar camisas de algodón localmente o importarlas, calculando en tiempo real el **punto de equilibrio por metro de tela** y el **costo esperado de mercado**.
 
-## Arquitectura y Cumplimiento Técnico
+---
 
-El proyecto está estructurado de forma modular separando la orquestación del SDK de la lógica de negocio:
+## Equipo — TEXTILYTICSTEAM
 
-- `.actor/`: Configuración del Actor (`actor.json`) y esquema de validación de entrada (`input_schema.json`).
-- `modelos/modelo_costos_camisa.joblib`: Pipeline de `scikit-learn` preentrenado fuera del Actor (sin entrenamiento en tiempo de ejecución).
-- `src/main.py`: Punto de entrada exclusivo para el SDK de Apify (`get_input`, `push_data`, `set_value`, `set_status_message`).
-- `src/config.py`: Parámetros económicos por defecto (`1.5` m/camisa, `$8.000` confección, tipo de cambio `$1.500 ARS/USD`) y lista de variables.
-- `src/limpieza.py`: Normalización de categorías y validación de tipos numéricos del lote recibido.
-- `src/modelo.py`: Carga del artefacto `.joblib` desde disco.
-- `src/prediccion.py`: Inferencia en bloque (*bulk*) y cálculo de costos simulados y punto de equilibrio (`$/m`).
-- `src/salidas.py`: Formateo limpio de registros JSON y generación del `RESUMEN_EJECUTIVO` en el Key-Value Store.
+Proyecto desarrollado en el marco del **Capstone Project — Samsung Innovation Campus (SIC) 2026** (Especialización en Inteligencia Artificial y Ciencia de Datos):
 
-## Formato de Entrada (Input JSON)
+* **Uriel Murua** — Arquitectura Cloud (Apify Actor), Automatización Batch (Make) e Integración de Datos.
+* **Valentina Sacco** — Análisis Exploratorio de Datos (EDA), Ingeniería de Features y Modelado Predictivo.
+* **Florencia Moreno** — Análisis de Negocio, Validación del Modelo y Visualización (Dashboard Ejecutivo).
 
-El Actor recibe los datos directamente a través del SDK de Apify (por ejemplo, enviados desde un escenario programado en **Make**):
+---
 
-```json
-{
-  "registros": [
-    {
-      "producto": "Tela Algodón Peinado Local",
-      "Alternativa": "Producción Nacional",
-      "Estrellas": 4.8,
-      "Cantidad_Resenas": 120,
-      "precio_por_metro": 8000,
-      "metro": 1.5
-    },
-    {
-      "producto": "Camisa Algodón Importada",
-      "Alternativa": "Importación (Shein)",
-      "Estrellas": 4.7,
-      "Cantidad_Resenas": 350,
-      "precio_venta_usd": 12,
-      "descuento_pct": 10
-    }
-  ],
-  "metros_por_camisa": 1.5,
-  "costo_confeccion_ars": 8000,
-  "tipo_cambio_usd": 1500
-}
+## Arquitectura e Integración Automatizada (Make + Apify)
+
+El Actor funciona exclusivamente como motor de inferencia y simulación económica sin lógica de entrenamiento ni iteración interna:
+
+```text
+[Google Sheets] ──► [Make (Schedule + Search Rows + Array Aggregator)]
+                                           │
+                                           ▼ (POST Batch JSON)
+                    [Apify Actor: actor-simulador-pyme]
+                      ├── src/preprocessing.py    (Limpieza y alineación de features)
+                      ├── src/inference.py        (Inferencia Gradient Boosting .joblib)
+                      └── src/tooling_business.py (Simulador PyME + KPIs Analytics)
+                                           │
+                                           ▼ (GET Dataset / Key-Value Store)
+                    [Google Sheets Resultados] ──► [Dashboard Ejecutivo]
