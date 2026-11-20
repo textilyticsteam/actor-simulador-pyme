@@ -1,3 +1,4 @@
+import json
 import numpy as np
 import pandas as pd
 from src.config import COLUMNAS_NUMERICAS, FEATURES
@@ -12,8 +13,11 @@ def _normalizar_alternativa(valor: object) -> str:
     return "Producción Nacional"
 
 
-def preparar_lote(registros: list[dict]) -> tuple[pd.DataFrame, pd.DataFrame]:
+def preparar_lote(registros) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Valida y limpia el lote de entrada. Devuelve (df_original, df_features)."""
+    if isinstance(registros, str):
+        registros = json.loads(registros)
+
     if not registros or not isinstance(registros, list):
         raise ValueError("El campo 'registros' debe ser una lista no vacía de objetos.")
 
