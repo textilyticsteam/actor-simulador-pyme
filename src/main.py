@@ -1,10 +1,10 @@
-from apify import Actor
+# from apify import Actor
 from src.config import (
     COSTO_CONFECCION_ARS_DEFAULT,
     METROS_POR_CAMISA_DEFAULT,
     TIPO_CAMBIO_USD_DEFAULT,
 )
-from src.limpieza import preparar_lote
+from src.limpieza import alinear_columnas_modelo, preparar_lote
 from src.modelo import cargar_modelo
 from src.prediccion import ejecutar_inferencia_y_simulacion
 from src.salidas import formatear_resultados
@@ -24,6 +24,7 @@ async def main() -> None:
 
         await Actor.set_status_message("Cargando modelo preentrenado...")
         modelo = cargar_modelo()
+        df_features = alinear_columnas_modelo(df_features, modelo)
 
         await Actor.set_status_message("Ejecutando predicción y simulación PyME...")
         df_resultados = ejecutar_inferencia_y_simulacion(
