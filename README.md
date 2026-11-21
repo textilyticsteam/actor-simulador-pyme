@@ -43,7 +43,7 @@ El sistema separa completamente el entrenamiento offline (Google Colab) de la in
 ```
 
 ### Escenario de Automatización en Make
-*(Guardar la captura del flujo conectado en el repositorio como `docs/escenario_make.png`)*
+
 
 ![Escenario Make](docs/escenario_make.png)
 
