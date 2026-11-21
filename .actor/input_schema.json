@@ -34,6 +34,9 @@
                     "vendedor": "sin especificar",
                     "Estrellas": 4.7,
                     "Cantidad_Resenas": 100,
+                    "Cantidad_Vendida": 50,
+                    "descuento_pct": null,
+                    "es_marketplace": null,
                     "precio_por_metro": 8000,
                     "metro": 1.5
                 },
@@ -44,8 +47,10 @@
                     "vendedor": "Manfinity",
                     "Estrellas": 4.7,
                     "Cantidad_Resenas": 100,
-                    "precio_venta_usd": 12,
-                    "descuento_pct": 25
+                    "Cantidad_Vendida": 500,
+                    "descuento_pct": 25,
+                    "es_marketplace": 0,
+                    "precio_venta_usd": 12
                 }
             ],
             "prefill": [
@@ -56,6 +61,9 @@
                     "vendedor": "sin especificar",
                     "Estrellas": 4.7,
                     "Cantidad_Resenas": 100,
+                    "Cantidad_Vendida": 50,
+                    "descuento_pct": null,
+                    "es_marketplace": null,
                     "precio_por_metro": 8000,
                     "metro": 1.5
                 },
@@ -66,8 +74,10 @@
                     "vendedor": "Manfinity",
                     "Estrellas": 4.7,
                     "Cantidad_Resenas": 100,
-                    "precio_venta_usd": 12,
-                    "descuento_pct": 25
+                    "Cantidad_Vendida": 500,
+                    "descuento_pct": 25,
+                    "es_marketplace": 0,
+                    "precio_venta_usd": 12
                 }
             ]
         },
