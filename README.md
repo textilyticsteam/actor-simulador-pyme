@@ -8,27 +8,38 @@ Servicio cloud en **Apify Store** que consolida **Analytics** e **Inferencia de 
 
 Proyecto desarrollado en el marco del **Capstone Project — Samsung Innovation Campus (SIC) 2026** (Especialización en Inteligencia Artificial y Ciencia de Datos):
 
-* **Uriel Murua** — Arquitectura Cloud (Apify Actor), Automatización Batch (Make) e Integración de Datos.
-* **Valentina Sacco** — Análisis Exploratorio de Datos (EDA), Ingeniería de Features y Modelado Predictivo.
-* **Florencia Moreno** — Análisis de Negocio, Validación del Modelo y Visualización (Dashboard Ejecutivo).
+- **Uriel Murua** — Arquitectura Cloud (Apify Actor), Automatización (Make) e Integración de Datos.
+- **Valentina Sacco** — Análisis Exploratorio de Datos (EDA), Ingeniería de Features y Modelado Predictivo.
+- **Florencia Moreno** — Análisis de Negocio, Validación del Modelo y Visualización (Dashboard Ejecutivo).
 
 ---
 
 ## Arquitectura e Integración Automatizada (Make + Apify)
 
-El Actor funciona exclusivamente como motor de inferencia y simulación económica sin lógica de entrenamiento ni iteración interna:
+El sistema separa completamente el entrenamiento offline (Google Colab) de la inferencia en la nube. El Actor en Apify opera únicamente como motor de predicción y simulación financiera sin estado, sin lógica de reentrenamiento ni iteradores internos:
 
 ```text
-[Google Sheets] ──► [Make (Schedule + Search Rows + Array Aggregator)]
-                                           │
-                                           ▼ (POST Batch JSON)
-                    [Apify Actor: actor-simulador-pyme]
-                      ├── src/preprocessing.py    (Limpieza y alineación de features)
-                      ├── src/inference.py        (Inferencia Gradient Boosting .joblib)
-                      └── src/tooling_business.py (Simulador PyME + KPIs Analytics)
-                                           │
-                                           ▼ (GET Dataset / Key-Value Store)
-                    [Google Sheets Resultados] ──► [Dashboard Ejecutivo]
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    1. PIPELINE OFFLINE (Google Colab)                   │
+│  Scraping ML & Shein ──▶ Limpieza NLP/Regex + IQR Log ──▶ EDA & Corr.   │
+│  ──▶ Entrenamiento (GroupKFold + TargetEncoder + Random Forest)         │
+│  ──▶ Artefacto serializado: modelos/modelo_costos_camisa.joblib         │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│              2. ORQUESTACIÓN E INFERENCIA CLOUD (Make + Apify)          │
+│  [Google Sheets: Parametros + Productos]                                │
+│         │                                                               │
+│         ▼  (Search Rows + Aggregate to JSON)                            │
+│  [Apify Actor: actor-simulador-pyme] (POST sincrónico)                  │
+│    ├── src/preprocessing.py    (Alineación de 8 features)               │
+│    ├── src/inference.py        (Inferencia Random Forest .joblib)       │
+│    └── src/tooling_business.py (Punto de Equilibrio + Decisión PyME)    │
+│         │                                                               │
+│         ▼  (Get Dataset Items + Key-Value Store)                        │
+│  [Google Sheets: Resultados] ──▶ [Dashboard Ejecutivo]                  │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Escenario de Automatización en Make
@@ -38,19 +49,52 @@ El Actor funciona exclusivamente como motor de inferencia y simulación económi
 
 ---
 
+## Ingeniería de Datos y Metodología (ETL + ML)
+
+### 1. Limpieza y Homologación de Fuentes (ETL)
+Se procesaron y estandarizaron dos fuentes heterogéneas bajo una taxonomía textil unificada en español:
+
+- **Dataset Nacional — Mercado Libre (`dataset_telas_limpio_definitivo.csv`):**
+  - **Normalización y filtrado:** Reparación de codificación (*mojibake*) y exclusión mediante expresiones regulares de prendas terminadas, artículos de bazar/mercería y telas vendidas por peso (`kg`).
+  - **Extracción NLP (Regex):** Identificación en cascada (título, ficha técnica y descripción) de `tipo_tela` (*poplín, batista, lienzo, oxford, tusor, gabardina*, etc.), `fibra` (*algodón, poliéster, mezclas*) y metraje vendido (`metro`), calculando el precio unitario comparable `precio_por_metro`.
+  - **Deduplicación y outliers:** Conservación de la publicación más completa por `idPublicacion` y descarte de precios atípicos mediante **filtro IQR sobre escala logarítmica** ($\ln(\text{precio\_por\_metro})$) para respetar la asimetría positiva del mercado.
+
+- **Dataset Importación — Shein (`dataset_shein_limpio_definitivo.csv`):**
+  - **Aplanamiento y canal de venta:** Extracción de atributos anidados desde archivos JSON, identificación de `es_marketplace` (`1` = vendedor externo, `0` = marca propia) y filtrado de camisas con género identificable (`Hombre` / `Mujer`).
+  - **Homologación bilingüe:** Mapeo de tejidos y fibras del inglés al esquema local (`cotton` $\rightarrow$ `algodon`, `twill` $\rightarrow$ `sarga`, `flannel` $\rightarrow$ `franela`).
+  - **Outliers estratificados por género:** Aplicación del filtro **IQR logarítmico por separado para Hombre y Mujer**, evitando que las diferencias de precio entre segmentos distorsionen los umbrales de limpieza.
+
+- **Unificación Comparativa:** Se seleccionaron telas aptas para camisería de fibra **algodón** (`fibra == 'algodon'`) y camisas importadas de algodón, estandarizando la variable objetivo `Costo` en pesos argentinos ($ARS).
+
+### 2. Análisis Exploratorio y Validación Estadística (EDA)
+Se evaluó la relación entre las variables predictoras y el costo mediante cinco métricas complementarias:
+- **Lineales y monótonas:** Pearson ($r$), Spearman ($\rho$) y Kendall ($\tau$).
+- **No lineales y categóricas:** *Distance Correlation* ($\text{dCor}$), Correlación Informacional de Linfoot ($IC$) basada en información mutua, y razón de correlación Eta-cuadrado ($\eta^2$).
+- **Control de ruido por permutación:** Simulación Monte Carlo permutando la variable objetivo para verificar qué relaciones superan el percentil 95 del ruido aleatorio.
+
+### 3. Entrenamiento y Selección del Modelo (`Random Forest`)
+- **Validación sin fuga de datos (*Data Leakage*):** Partición Train/Test (`GroupShuffleSplit` 80/20) y validación cruzada de 5 pliegues (`GroupKFold`) agrupadas por `grupo_id`, garantizando que variantes o scrapes de un mismo artículo no se mezclen entre entrenamiento y prueba.
+- **Preprocesamiento integrado en `Pipeline`:**
+  - *Categóricas (`Alternativa`, `segmento`, `vendedor`):* Imputación por moda + `TargetEncoder` con validación cruzada interna (`cv=5`), evitando la explosión dimensional de *One-Hot Encoding*.
+  - *Numéricas (`Estrellas`, `Cantidad_Resenas`, `Cantidad_Vendida`, `descuento_pct`, `es_marketplace`):* Imputación por mediana + `StandardScaler`.
+- **Transformación logarítmica del objetivo:** `TransformedTargetRegressor` (`np.log1p` / `np.expm1`) para estabilizar la varianza y mejorar la precisión relativa en toda la escala de precios.
+- **Modelo ganador:** Tras comparar modelos lineales regularizados (`Ridge`) y ensambles de árboles (`Random Forest` y `HistGradientBoosting`), se seleccionó **Random Forest Regressor** (`n_estimators=300`, `max_depth=10`, `min_samples_leaf=5`) y se exportó como `modelos/modelo_costos_camisa.joblib` (`scikit-learn 1.6.1`).
+
+---
+
 ## Operaciones Disponibles (`POST` y `GET`)
 
 El Actor consolida ambos servicios de negocio mediante el parámetro `operacion` en un único endpoint:
 
-* **`all` (por defecto):** Ejecuta **Inference + Analytics** en simultáneo. Guarda la tabla fila por fila en el `Dataset` y los KPIs agregados en `RESUMEN_ANALYTICS`.
-* **`inference`:** Devuelve únicamente las predicciones unitarias del modelo ML y la decisión económica por producto.
-* **`analytics`:** Devuelve únicamente el resumen estadístico agregado del lote evaluado.
+- **`all` (por defecto):** Ejecuta **Inference + Analytics** en simultáneo. Guarda la tabla fila por fila en el `Dataset` y los KPIs agregados en `RESUMEN_ANALYTICS`.
+- **`inference`:** Devuelve únicamente las predicciones unitarias del modelo ML y la decisión económica por producto.
+- **`analytics`:** Devuelve únicamente el resumen estadístico agregado de los registros evaluados.
 
 ### 1. Ejecutar el servicio (`POST`)
 Permite disparar una simulación sincrónica (desde Make, n8n o cualquier cliente HTTP) y obtener los resultados en la misma respuesta:
 
 ```bash
-curl -X POST "https://api.apify.com/v2/acts/linkable_oven_urt~actor-simulador-pyme/run-sync-get-dataset-items?token=TU_APIFY_TOKEN" \
+curl -X POST "[https://api.apify.com/v2/acts/linkable_oven_urt~actor-simulador-pyme/run-sync-get-dataset-items?token=TU_APIFY_TOKEN](https://api.apify.com/v2/acts/linkable_oven_urt~actor-simulador-pyme/run-sync-get-dataset-items?token=TU_APIFY_TOKEN)" \
   -H "Content-Type: application/json" \
   -d '{
     "operacion": "all",
@@ -59,37 +103,40 @@ curl -X POST "https://api.apify.com/v2/acts/linkable_oven_urt~actor-simulador-py
     "tipo_cambio_usd": 1500,
     "registros": [
       {
-        "producto": "Tela Poplin Algodón Local",
+        "producto": "100% Algodón Por Metro",
         "Alternativa": "Producción Nacional",
-        "segmento": "poplin",
-        "vendedor": "sin especificar",
-        "Estrellas": 4.7,
-        "Cantidad_Resenas": 100,
-        "precio_por_metro": 8000,
-        "metro": 1.5
+        "segmento": "tusor",
+        "vendedor": "TELAS.COM",
+        "Estrellas": 5,
+        "Cantidad_Resenas": 88,
+        "precio_por_metro": 9163,
+        "metro": 1,
+        "Cantidad_Vendida": 1000
       },
       {
-        "producto": "Camisa Algodón Importada",
+        "producto": "Manfinity Solid Long Sleeve Shirt",
         "Alternativa": "Importación (Shein)",
         "segmento": "Men Shirts",
         "vendedor": "Manfinity",
-        "Estrellas": 4.7,
-        "Cantidad_Resenas": 100,
-        "precio_venta_usd": 12,
-        "descuento_pct": 25
+        "Estrellas": 5,
+        "Cantidad_Resenas": 1001,
+        "precio_venta_usd": 8.75,
+        "descuento_pct": 32,
+        "Cantidad_Vendida": 300,
+        "es_marketplace": 0
       }
     ]
   }'
 ```
 
 ### 2. Consultar documentación y resultados (`GET`)
-* **Metadatos y esquema público del Actor:**
+- **Metadatos y esquema público del Actor:**
   ```bash
-  curl -X GET "https://api.apify.com/v2/acts/linkable_oven_urt~actor-simulador-pyme"
+  curl -X GET "[https://api.apify.com/v2/acts/linkable_oven_urt~actor-simulador-pyme](https://api.apify.com/v2/acts/linkable_oven_urt~actor-simulador-pyme)"
   ```
-* **Resumen ejecutivo agregado (`RESUMEN_ANALYTICS` en Key-Value Store):**
+- **Resumen ejecutivo agregado (`RESUMEN_ANALYTICS` en Key-Value Store):**
   ```bash
-  curl -X GET "https://api.apify.com/v2/key-value-stores/STORE_ID/records/RESUMEN_ANALYTICS?token=TU_APIFY_TOKEN"
+  curl -X GET "[https://api.apify.com/v2/key-value-stores/STORE_ID/records/RESUMEN_ANALYTICS?token=TU_APIFY_TOKEN](https://api.apify.com/v2/key-value-stores/STORE_ID/records/RESUMEN_ANALYTICS?token=TU_APIFY_TOKEN)"
   ```
 
 ---
@@ -100,7 +147,7 @@ curl -X POST "https://api.apify.com/v2/acts/linkable_oven_urt~actor-simulador-py
 | Campo | Tipo | Obligatorio | Default | Descripción |
 | :--- | :--- | :---: | :---: | :--- |
 | `operacion` | `string` | No | `"all"` | Modo de ejecución: `"all"`, `"inference"` o `"analytics"`. |
-| `registros` | `array` | **Sí** | — | Lista de telas nacionales o prendas importadas a evaluar en lote. |
+| `registros` | `array` | **Sí** | — | Lista de telas nacionales o prendas importadas a evaluar. |
 | `metros_por_camisa` | `number` | No | `1.5` | Metros de tela requeridos para confeccionar una camisa. |
 | `costo_confeccion_ars` | `integer` | No | `8000` | Costo fijo de taller y mano de obra local por prenda (`$ ARS`). |
 | `tipo_cambio_usd` | `number` | No | `1500` | Tipo de cambio de referencia (`$ ARS/USD`) para importación. |
@@ -109,30 +156,30 @@ curl -X POST "https://api.apify.com/v2/acts/linkable_oven_urt~actor-simulador-py
 ```json
 [
   {
-    "producto": "Tela Algodón Peinado Local",
+    "producto": "100% Algodón Por Metro",
     "Alternativa": "Producción Nacional",
-    "Estrellas": 4.8,
-    "Cantidad_Resenas": 120,
-    "precio_por_metro": 8000,
-    "metro": 1.5,
-    "Costo_Estimado_ML_ARS": 21361,
-    "Costo_Nacional_Simulado_ARS": 20000,
+    "Estrellas": 5,
+    "Cantidad_Resenas": 88,
+    "precio_por_metro": 9163,
+    "metro": 1,
+    "Costo_Estimado_ML_ARS": 21745,
+    "Costo_Nacional_Simulado_ARS": 21745,
     "Costo_Importacion_Simulado_ARS": null,
     "Punto_Equilibrio_Metro_ARS": null,
-    "Decision_PyME": "Producir local a $20,000 ARS (conviene importar solo si prenda < USD 13.33)"
+    "Decision_PyME": "Producir local a $21,745 ARS (conviene importar solo si prenda < USD 14.50)"
   },
   {
-    "producto": "Camisa Algodón Importada",
+    "producto": "Manfinity Solid Long Sleeve Shirt",
     "Alternativa": "Importación (Shein)",
-    "Estrellas": 4.7,
-    "Cantidad_Resenas": 350,
-    "precio_venta_usd": 12,
-    "descuento_pct": 10,
-    "Costo_Estimado_ML_ARS": 19552,
+    "Estrellas": 5,
+    "Cantidad_Resenas": 1001,
+    "precio_venta_usd": 8.75,
+    "descuento_pct": 32,
+    "Costo_Estimado_ML_ARS": 14820,
     "Costo_Nacional_Simulado_ARS": null,
-    "Costo_Importacion_Simulado_ARS": 18000,
-    "Punto_Equilibrio_Metro_ARS": 6666.67,
-    "Decision_PyME": "Importar a $18,000 ARS (conviene producir local solo si tela < $6,667/m)"
+    "Costo_Importacion_Simulado_ARS": 13125,
+    "Punto_Equilibrio_Metro_ARS": 3416.67,
+    "Decision_PyME": "Importar a $13,125 ARS (conviene producir local solo si tela < $3,417/m)"
   }
 ]
 ```
@@ -141,15 +188,17 @@ curl -X POST "https://api.apify.com/v2/acts/linkable_oven_urt~actor-simulador-py
 
 ## Métricas del Modelo y de Negocio
 
-### Desempeño del Modelo Predictivo (`Gradient Boosting`)
+### Desempeño del Modelo Predictivo (`Random Forest`)
 Entrenado con validación cruzada agrupada (`GroupKFold`) y evaluado sobre conjunto de prueba independiente (`GroupShuffleSplit` 80/20) sin filtración de precios unitarios:
-* **$R^2$ (Test):** `0,7004` (explica el 70% de la variabilidad del costo por camisa).
-* **MAE (Test):** `$5.128 ARS`
-* **RMSE (Test):** `$11.182 ARS`
+- **$R^2$ (Test):** `0,7004` (explica el 70% de la variabilidad del costo por camisa).
+- **MAE (Test):** `$5.128 ARS`
+- **RMSE (Test):** `$11.182 ARS`
 
-### Métricas de Negocio para la PyME
-* **Punto de Equilibrio por Metro (`Punto_Equilibrio_Metro_ARS`):** Indica el precio máximo que la PyME puede pagar por metro de tela nacional antes de que convenga importar (ej.: frente a una prenda importada de `USD 12` a `$1.500 ARS/USD` con confección de `$8.000`, el techo rentable de la tela es **`$6.666,67 ARS/m`**).
-* **Diferencial Económico (`Diferencia_Nac_vs_Imp_ARS`):** Cuantifica el ahorro directo en pesos argentinos por prenda para respaldar decisiones de abastecimiento.
+### Fórmulas de Negocio para la PyME
+- **Costo Nacional Simulado:** $(\text{precio\_por\_metro} \times \text{metros\_por\_camisa}) + \text{costo\_confeccion\_ars}$
+- **Costo Importación Simulado:** $\text{precio\_venta\_usd} \times \text{tipo\_cambio\_usd}$
+- **Punto de Equilibrio por Metro (`Punto_Equilibrio_Metro_ARS`):** Indica el precio máximo que la PyME puede pagar por metro de tela nacional para empatar el costo de importar la prenda terminada:
+  $$\text{Punto de Equilibrio} = \frac{\text{Costo Importación} - \text{costo\_confeccion\_ars}}{\text{metros\_por\_camisa}}$$
 
 ---
 
@@ -165,12 +214,30 @@ Entrenado con validación cruzada agrupada (`GroupKFold`) y evaluado sobre conju
 
 ### Modelo de Monetización Sugerido
 Dado el bajo consumo de cómputo (`< 0,001 CU` por corrida) y el impacto directo en la rentabilidad de compras textiles:
-* **Modelo Pay-Per-Event (PPE) en Apify Store:**
-  * **Nivel Gratuito / Prueba:** Primeras `20 ejecuciones` sin cargo para validación con datos propios de la PyME.
-  * **Precio Comercial:** **`$0,05 USD` por ejecución de lote** (hasta 500 productos por corrida).
-  * **Rentabilidad Bruta:** Frente a un costo operativo de `$0,0003 USD` por corrida (más comisiones de plataforma), mantiene un **margen operativo superior al 95%**, resultando accesible para cualquier taller o comercio textil (`~$2,50 USD/mes` en corridas semanales).
+- **Modelo Pay-Per-Event (PPE) en Apify Store:**
+  - **Nivel Gratuito / Prueba:** Primeras `20 ejecuciones` sin cargo para validación con datos propios de la PyME.
+  - **Precio Comercial:** **`$0,05 USD` por ejecución** (hasta 500 registros por consulta).
+  - **Rentabilidad Bruta:** Frente a un costo operativo de `$0,0003 USD` por corrida (más comisiones de plataforma), mantiene un **margen operativo superior al 95%**, resultando accesible para cualquier taller o comercio textil (`~$2,50 USD/mes` en corridas semanales).
 
 ---
 
-## Licencia
-Distribuido bajo licencia **MIT**. Ver archivo `LICENSE` para más detalles.
+## Estructura del Repositorio
+
+```text
+├── .actor/
+│   ├── actor.json                       # Configuración y metadatos del Actor en Apify
+│   └── input_schema.json                # Esquema de validación de parámetros de entrada
+├── modelos/
+│   └── modelo_costos_camisa.joblib      # Pipeline entrenado (Random Forest + TargetEncoder)
+├── src/
+│   ├── __main__.py                      # Punto de ejecución del paquete Python
+│   ├── config.py                        # Constantes y rutas del modelo serializado
+│   ├── main.py                          # Entrypoint asíncrono del Actor en Apify
+│   ├── preprocessing.py                 # Limpieza y alineación de las 8 features de entrada
+│   ├── inference.py                     # Carga del .joblib y ejecución de predicciones
+│   ├── tooling_business.py              # Simulación financiera, punto de equilibrio y KPIs
+│   └── salidas.py                       # Escritura en Dataset y Key-Value Store de Apify
+├── Dockerfile                           # Imagen base Python para despliegue en Apify Cloud
+├── requirements.txt                     # Dependencias (scikit-learn==1.6.1, pandas, numpy, joblib)
+└── README.md                            # Documentación principal del proyecto
+```
