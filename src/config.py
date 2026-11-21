@@ -8,7 +8,9 @@ FEATURES = [
     "vendedor",
     "Estrellas",
     "Cantidad_Resenas",
+    "Cantidad_Vendida",
     "descuento_pct",
+    "es_marketplace",
 ]
 
 COLUMNAS_CATEGORICAS = [
@@ -20,7 +22,9 @@ COLUMNAS_CATEGORICAS = [
 COLUMNAS_NUMERICAS = [
     "Estrellas",
     "Cantidad_Resenas",
+    "Cantidad_Vendida",
     "descuento_pct",
+    "es_marketplace",
 ]
 
 METROS_POR_CAMISA_DEFAULT = 1.5
