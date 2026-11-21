@@ -67,20 +67,20 @@ Se procesaron y estandarizaron dos fuentes heterogéneas bajo una taxonomía tex
   - **Homologación bilingüe:** Mapeo de tejidos y fibras del inglés al esquema local (`cotton` -> `algodon`, `twill` -> `sarga`, `flannel` -> `franela`).
   - **Outliers estratificados por género:** Aplicación del filtro **IQR logarítmico por separado para Hombre y Mujer**, evitando que las diferencias de precio entre segmentos distorsionen los umbrales de limpieza.
 
-- **Unificación Comparativa:** Se seleccionaron telas aptas para camisería de fibra **algodón** (`fibra == 'algodon'`) y camisas importadas de algodón, estandarizando la variable objetivo `Costo` en pesos argentinos (`$ ARS`).
+- **Unificación Comparativa:** Se seleccionaron telas aptas para camisería de fibra **algodón** (`fibra == 'algodon'`) y camisas importadas de algodón (`1.741 registros válidos` en total: 578 nacionales y 1.163 importados), estandarizando la variable objetivo `Costo` en pesos argentinos (`$ ARS`).
 
 ### 2. Análisis Exploratorio y Validación Estadística (EDA)
 Se evaluó la relación entre las variables predictoras y el costo mediante cinco métricas complementarias:
 - **Lineales y monótonas:** Pearson (`r`), Spearman (`rho`) y Kendall (`tau`).
 - **No lineales y categóricas:** *Distance Correlation* (`dCor`), Correlación Informacional de Linfoot (`IC`) basada en información mutua, y razón de correlación Eta-cuadrado (`eta^2`).
-- **Control de ruido por permutación:** Simulación Monte Carlo permutando la variable objetivo para verificar qué relaciones superan el percentil 95 del ruido aleatorio.
+- **Control de ruido por permutación (`control_permutacion`):** Prueba de permutación (`n_perm = 20`) barajando aleatoriamente `Costo` para calcular el percentil 95 del ruido nulo y verificar si cada métrica observada supera ese umbral.
 
 ### 3. Entrenamiento y Selección del Modelo (`Random Forest`)
 - **Validación sin fuga de datos (*Data Leakage*):** Partición Train/Test (`GroupShuffleSplit` 80/20) y validación cruzada de 5 pliegues (`GroupKFold`) agrupadas por `grupo_id`, garantizando que variantes o scrapes de un mismo artículo no se mezclen entre entrenamiento y prueba.
 - **Preprocesamiento integrado en `Pipeline`:**
   - *Categóricas (`Alternativa`, `segmento`, `vendedor`):* Imputación por moda + `TargetEncoder` con validación cruzada interna (`cv=5`), evitando la explosión dimensional de *One-Hot Encoding*.
   - *Numéricas (`Estrellas`, `Cantidad_Resenas`, `Cantidad_Vendida`, `descuento_pct`, `es_marketplace`):* Imputación por mediana + `StandardScaler`.
-- **Transformación logarítmica del objetivo:** `TransformedTargetRegressor` (`np.log1p` / `np.expm1`) para estabilizar la varianza y mejorar la precisión relativa en toda la escala de precios.
+- **Transformación logarítmica del objetivo:** `TransformedTargetRegressor` (`np.log1p` / `np.expm1`) para estabilizar la varianza y mejorar la precisión relativa en toda la escala de precios (`log_Costo` se emplea únicamente en el análisis de correlaciones y nunca como predictor).
 - **Modelo ganador:** Tras comparar modelos lineales regularizados (`Ridge`) y ensambles de árboles (`Random Forest` y `HistGradientBoosting`), se seleccionó **Random Forest Regressor** (`n_estimators=300`, `max_depth=10`, `min_samples_leaf=5`) y se exportó como `modelos/modelo_costos_camisa.joblib` (`scikit-learn 1.6.1`).
 
 ---
