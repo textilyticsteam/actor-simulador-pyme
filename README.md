@@ -42,10 +42,13 @@ El sistema separa completamente el entrenamiento offline (Google Colab) de la in
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Escenario de Automatización en Make
-
-
-![Escenario Make](docs/escenario_make.png)
+### Flujo de Automatización en Make.com
+![Escenario Make](docs/flujo.png)
+1. **Lectura de parámetros (`Google Sheets - Search Rows [1]`):** Lee `tipo_cambio_usd`, `costo_confeccion_ars` y `metros_por_camisa` desde la pestaña `Parametros`.
+2. **Lectura de catálogo (`Google Sheets - Search Rows [2]`):** Obtiene los productos nacionales e importados cargados en la pestaña `Productos`.
+3. **Empaquetado (`JSON - Aggregate to JSON [9]`):** Consolida todas las filas en un único arreglo JSON válido con las 12 claves esperadas.
+4. **Inferencia sincrónica (`Apify - Run an Actor [5]`):** Envía parámetros y registros al Actor `actor-simulador-pyme` en una única llamada (`operacion: "all"`).
+5. **Escritura de resultados (`Apify - Get Dataset Items [6]` + `Google Sheets - Add a Row [7]`):** Descarga las predicciones y decisiones económicas y las registra en la pestaña `Resultados`.
 
 ---
 
@@ -57,19 +60,19 @@ Se procesaron y estandarizaron dos fuentes heterogéneas bajo una taxonomía tex
 - **Dataset Nacional — Mercado Libre (`dataset_telas_limpio_definitivo.csv`):**
   - **Normalización y filtrado:** Reparación de codificación (*mojibake*) y exclusión mediante expresiones regulares de prendas terminadas, artículos de bazar/mercería y telas vendidas por peso (`kg`).
   - **Extracción NLP (Regex):** Identificación en cascada (título, ficha técnica y descripción) de `tipo_tela` (*poplín, batista, lienzo, oxford, tusor, gabardina*, etc.), `fibra` (*algodón, poliéster, mezclas*) y metraje vendido (`metro`), calculando el precio unitario comparable `precio_por_metro`.
-  - **Deduplicación y outliers:** Conservación de la publicación más completa por `idPublicacion` y descarte de precios atípicos mediante **filtro IQR sobre escala logarítmica** ($\ln(\text{precio\_por\_metro})$) para respetar la asimetría positiva del mercado.
+  - **Deduplicación y outliers:** Conservación de la publicación más completa por `idPublicacion` y descarte de precios atípicos mediante **filtro IQR sobre escala logarítmica** (`ln(precio_por_metro)`) para respetar la asimetría positiva del mercado.
 
 - **Dataset Importación — Shein (`dataset_shein_limpio_definitivo.csv`):**
   - **Aplanamiento y canal de venta:** Extracción de atributos anidados desde archivos JSON, identificación de `es_marketplace` (`1` = vendedor externo, `0` = marca propia) y filtrado de camisas con género identificable (`Hombre` / `Mujer`).
-  - **Homologación bilingüe:** Mapeo de tejidos y fibras del inglés al esquema local (`cotton` $\rightarrow$ `algodon`, `twill` $\rightarrow$ `sarga`, `flannel` $\rightarrow$ `franela`).
+  - **Homologación bilingüe:** Mapeo de tejidos y fibras del inglés al esquema local (`cotton` -> `algodon`, `twill` -> `sarga`, `flannel` -> `franela`).
   - **Outliers estratificados por género:** Aplicación del filtro **IQR logarítmico por separado para Hombre y Mujer**, evitando que las diferencias de precio entre segmentos distorsionen los umbrales de limpieza.
 
-- **Unificación Comparativa:** Se seleccionaron telas aptas para camisería de fibra **algodón** (`fibra == 'algodon'`) y camisas importadas de algodón, estandarizando la variable objetivo `Costo` en pesos argentinos ($ARS).
+- **Unificación Comparativa:** Se seleccionaron telas aptas para camisería de fibra **algodón** (`fibra == 'algodon'`) y camisas importadas de algodón, estandarizando la variable objetivo `Costo` en pesos argentinos (`$ ARS`).
 
 ### 2. Análisis Exploratorio y Validación Estadística (EDA)
 Se evaluó la relación entre las variables predictoras y el costo mediante cinco métricas complementarias:
-- **Lineales y monótonas:** Pearson ($r$), Spearman ($\rho$) y Kendall ($\tau$).
-- **No lineales y categóricas:** *Distance Correlation* ($\text{dCor}$), Correlación Informacional de Linfoot ($IC$) basada en información mutua, y razón de correlación Eta-cuadrado ($\eta^2$).
+- **Lineales y monótonas:** Pearson (`r`), Spearman (`rho`) y Kendall (`tau`).
+- **No lineales y categóricas:** *Distance Correlation* (`dCor`), Correlación Informacional de Linfoot (`IC`) basada en información mutua, y razón de correlación Eta-cuadrado (`eta^2`).
 - **Control de ruido por permutación:** Simulación Monte Carlo permutando la variable objetivo para verificar qué relaciones superan el percentil 95 del ruido aleatorio.
 
 ### 3. Entrenamiento y Selección del Modelo (`Random Forest`)
@@ -190,15 +193,23 @@ curl -X POST "[https://api.apify.com/v2/acts/linkable_oven_urt~actor-simulador-p
 
 ### Desempeño del Modelo Predictivo (`Random Forest`)
 Entrenado con validación cruzada agrupada (`GroupKFold`) y evaluado sobre conjunto de prueba independiente (`GroupShuffleSplit` 80/20) sin filtración de precios unitarios:
-- **$R^2$ (Test):** `0,7004` (explica el 70% de la variabilidad del costo por camisa).
+- **R² (Test):** `0,7004` (explica el 70% de la variabilidad del costo por camisa).
 - **MAE (Test):** `$5.128 ARS`
 - **RMSE (Test):** `$11.182 ARS`
 
 ### Fórmulas de Negocio para la PyME
-- **Costo Nacional Simulado:** $(\text{precio\_por\_metro} \times \text{metros\_por\_camisa}) + \text{costo\_confeccion\_ars}$
-- **Costo Importación Simulado:** $\text{precio\_venta\_usd} \times \text{tipo\_cambio\_usd}$
+- **Costo Nacional Simulado:**
+  ```text
+  Costo_Nacional_Simulado_ARS = (precio_por_metro * metros_por_camisa) + costo_confeccion_ars
+  ```
+- **Costo Importación Simulado:**
+  ```text
+  Costo_Importacion_Simulado_ARS = precio_venta_usd * tipo_cambio_usd
+  ```
 - **Punto de Equilibrio por Metro (`Punto_Equilibrio_Metro_ARS`):** Indica el precio máximo que la PyME puede pagar por metro de tela nacional para empatar el costo de importar la prenda terminada:
-  $$\text{Punto de Equilibrio} = \frac{\text{Costo Importación} - \text{costo\_confeccion\_ars}}{\text{metros\_por\_camisa}}$$
+  ```text
+  Punto_Equilibrio_Metro_ARS = (Costo_Importacion_Simulado_ARS - costo_confeccion_ars) / metros_por_camisa
+  ```
 
 ---
 
@@ -227,6 +238,8 @@ Dado el bajo consumo de cómputo (`< 0,001 CU` por corrida) y el impacto directo
 ├── .actor/
 │   ├── actor.json                       # Configuración y metadatos del Actor en Apify
 │   └── input_schema.json                # Esquema de validación de parámetros de entrada
+├── docs/
+│   └── flujo.png                        # Captura del flujo conectado en Make.com
 ├── modelos/
 │   └── modelo_costos_camisa.joblib      # Pipeline entrenado (Random Forest + TargetEncoder)
 ├── src/
