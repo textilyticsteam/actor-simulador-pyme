@@ -1,0 +1,11 @@
+{
+  "actorOutputSchemaVersion": 1,
+  "title": "Resultados Simulador de Costos PyME",
+  "properties": {
+    "resultados": {
+      "type": "string",
+      "title": "Predicciones y Decisión PyME",
+      "template": "{{links.apiDefaultDatasetUrl}}/items"
+    }
+  }
+}
