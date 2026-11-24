@@ -237,7 +237,8 @@ Dado el bajo consumo de cómputo (`< 0,001 CU` por corrida) y el impacto directo
 ```text
 ├── .actor/
 │   ├── actor.json                       # Configuración y metadatos del Actor en Apify
-│   └── input_schema.json                # Esquema de validación de parámetros de entrada
+│   ├── input_schema.json                # Esquema de validación de parámetros de entrada
+|   └── output_schema.json               # Esquema de definición de resultados
 ├── docs/
 │   └── flujo.png                        # Captura del flujo conectado en Make.com
 ├── modelos/
